@@ -45,7 +45,7 @@ jobs:
           repository: Digidai/openjobs-ai-releases
           tag_name: ${{ github.ref_name }}
           name: "OpenJobs AI v${{ steps.version.outputs.version }}"
-          generate_release_notes: true
+          body: "OpenJobs AI v${{ steps.version.outputs.version }} for macOS (Apple Silicon)"
           files: |
             release/*.dmg
             release/*.dmg.blockmap
