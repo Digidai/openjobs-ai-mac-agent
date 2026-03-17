@@ -135,16 +135,13 @@ function applyMacIconFix(appPath) {
 function adHocCodesign(appPath) {
   console.log('[electron-builder-hooks] Applying ad-hoc codesign...');
 
-  // Strip extended attributes (resource forks, Finder info) recursively first
-  // This prevents "resource fork, Finder information, or similar detritus not allowed"
-  const xattrResult = spawnSync('xattr', ['-cr', appPath], { encoding: 'utf-8' });
-  if (xattrResult.status !== 0) {
-    console.warn('[electron-builder-hooks] ⚠ xattr cleanup warning:', xattrResult.stderr);
-  }
+  // Clean extended attributes where possible
+  spawnSync('xattr', ['-cr', appPath], { encoding: 'utf-8' });
 
-  // Sign all nested frameworks/helpers first (deep), then the app itself
+  // Use --no-strict to allow signing even with com.apple.provenance
+  // (irremovable on macOS Sequoia+, inherited from downloaded Electron binary)
   const result = spawnSync('codesign', [
-    '--force', '--deep', '--sign', '-', appPath,
+    '--force', '--deep', '--no-strict', '--sign', '-', appPath,
   ], { encoding: 'utf-8', timeout: 120000 });
 
   if (result.status === 0) {

@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package
+        run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create release in current repo
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "OpenJobs AI v${{ steps.version.outputs.version }}"
+          generate_release_notes: true
+          files: |
+            release/*.dmg
+            release/*.dmg.blockmap
+
+      - name: Publish to public release repo
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: Digidai/openjobs-ai-releases
+          tag_name: ${{ github.ref_name }}
+          name: "OpenJobs AI v${{ steps.version.outputs.version }}"
+          generate_release_notes: true
+          files: |
+            release/*.dmg
+            release/*.dmg.blockmap
+          token: ${{ secrets.RELEASE_TOKEN }}

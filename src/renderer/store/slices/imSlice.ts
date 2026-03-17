@@ -12,7 +12,6 @@ import type {
   QQConfig,
   TelegramConfig,
   DiscordConfig,
-  NimConfig,
   WecomConfig,
   IMSettings,
 } from '../../types/im';
@@ -57,9 +56,6 @@ const imSlice = createSlice({
     setDiscordConfig: (state, action: PayloadAction<Partial<DiscordConfig>>) => {
       state.config.discord = { ...state.config.discord, ...action.payload };
     },
-    setNimConfig: (state, action: PayloadAction<Partial<NimConfig>>) => {
-      state.config.nim = { ...state.config.nim, ...action.payload };
-    },
     setWecomConfig: (state, action: PayloadAction<Partial<WecomConfig>>) => {
       state.config.wecom = { ...state.config.wecom, ...action.payload };
     },
@@ -88,7 +84,6 @@ export const {
   setQQConfig,
   setTelegramConfig,
   setDiscordConfig,
-  setNimConfig,
   setWecomConfig,
   setIMSettings,
   setStatus,

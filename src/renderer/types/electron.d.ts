@@ -381,10 +381,10 @@ interface IElectronAPI {
   im: {
     getConfig: () => Promise<{ success: boolean; config?: IMGatewayConfig; error?: string }>;
     setConfig: (config: Partial<IMGatewayConfig>) => Promise<{ success: boolean; error?: string }>;
-    startGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'wecom') => Promise<{ success: boolean; error?: string }>;
-    stopGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'wecom') => Promise<{ success: boolean; error?: string }>;
+    startGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'wecom') => Promise<{ success: boolean; error?: string }>;
+    stopGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'wecom') => Promise<{ success: boolean; error?: string }>;
     testGateway: (
-      platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'wecom',
+      platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'wecom',
       configOverride?: Partial<IMGatewayConfig>
     ) => Promise<{ success: boolean; result?: IMConnectivityTestResult; error?: string }>;
     getStatus: () => Promise<{ success: boolean; status?: IMGatewayStatus; error?: string }>;
@@ -422,7 +422,6 @@ interface IMGatewayConfig {
   qq: QQConfig;
   telegram: TelegramConfig;
   discord: DiscordConfig;
-  nim: NimConfig;
   wecom: WecomConfig;
   settings: IMSettings;
 }
@@ -462,21 +461,6 @@ interface DiscordConfig {
   debug?: boolean;
 }
 
-interface NimConfig {
-  enabled: boolean;
-  appKey: string;
-  account: string;
-  token: string;
-  accountWhitelist: string;
-  debug?: boolean;
-  // 群组消息配置
-  teamPolicy?: 'open' | 'allowlist' | 'disabled';
-  teamAllowlist?: string;
-  // QChat 圈组配置
-  qchatEnabled?: boolean;
-  qchatServerIds?: string;
-}
-
 interface QQConfig {
   enabled: boolean;
   appId: string;
@@ -502,7 +486,6 @@ interface IMGatewayStatus {
   qq: QQGatewayStatus;
   telegram: TelegramGatewayStatus;
   discord: DiscordGatewayStatus;
-  nim: NimGatewayStatus;
   wecom: WecomGatewayStatus;
 }
 
@@ -522,8 +505,8 @@ type IMConnectivityCheckCode =
   | 'discord_group_requires_mention'
   | 'telegram_privacy_mode_hint'
   | 'dingtalk_bot_membership_hint'
-  | 'nim_p2p_only_hint'
-  | 'qq_guild_mention_hint';
+  | 'qq_guild_mention_hint'
+  | 'wecom_bot_hint';
 
 interface IMConnectivityCheck {
   code: IMConnectivityCheckCode;
@@ -533,7 +516,7 @@ interface IMConnectivityCheck {
 }
 
 interface IMConnectivityTestResult {
-  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'wecom';
+  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'wecom';
   testedAt: number;
   verdict: IMConnectivityVerdict;
   checks: IMConnectivityCheck[];
@@ -575,15 +558,6 @@ interface DiscordGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-interface NimGatewayStatus {
-  connected: boolean;
-  startedAt: number | null;
-  lastError: string | null;
-  botAccount: string | null;
-  lastInboundAt: number | null;
-  lastOutboundAt: number | null;
-}
-
 interface QQGatewayStatus {
   connected: boolean;
   startedAt: number | null;
@@ -602,7 +576,7 @@ interface WecomGatewayStatus {
 }
 
 interface IMMessage {
-  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'wecom';
+  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'wecom';
   messageId: string;
   conversationId: string;
   senderId: string;

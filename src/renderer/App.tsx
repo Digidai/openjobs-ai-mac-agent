@@ -16,7 +16,7 @@ import { apiService } from './services/api';
 import { themeService } from './services/theme';
 import { coworkService } from './services/cowork';
 import { scheduledTaskService } from './services/scheduledTask';
-import { type AppUpdateInfo, type AppUpdateDownloadProgress } from './services/appUpdate';
+import { type AppUpdateInfo, type AppUpdateDownloadProgress, checkForAppUpdate, UPDATE_POLL_INTERVAL_MS } from './services/appUpdate';
 import { defaultConfig } from './config';
 import { setAvailableModels, setSelectedModel } from './store/slices/modelSlice';
 import { clearSelection } from './store/slices/quickActionSlice';
@@ -470,8 +470,30 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scheduledTask:viewSession', handleViewSession);
   }, []);
 
-  // Auto update check disabled — no longer phones home to Youdao servers.
-  // To re-enable, restore the useEffect that calls runUpdateCheck() on a timer.
+  // Auto update check — polls GitHub Releases every 12 hours
+  useEffect(() => {
+    const runCheck = async () => {
+      try {
+        const version = await window.electron.appInfo.getVersion();
+        const info = await checkForAppUpdate(version);
+        if (info) {
+          setUpdateInfo(info);
+        }
+      } catch {
+        // Silently ignore update check failures
+      }
+    };
+
+    // Check on startup (delayed 10s to not block launch)
+    const startupTimer = setTimeout(runCheck, 10_000);
+    // Then every 12 hours
+    const pollTimer = setInterval(runCheck, UPDATE_POLL_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(startupTimer);
+      clearInterval(pollTimer);
+    };
+  }, []);
 
   // 根据场景选择使用哪个权限组件
   const permissionModal = useMemo(() => {

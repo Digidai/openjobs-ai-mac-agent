@@ -11,7 +11,6 @@ import {
   QQConfig,
   TelegramConfig,
   DiscordConfig,
-  NimConfig,
   WecomConfig,
   IMSettings,
   IMPlatform,
@@ -21,7 +20,6 @@ import {
   DEFAULT_QQ_CONFIG,
   DEFAULT_TELEGRAM_CONFIG,
   DEFAULT_DISCORD_CONFIG,
-  DEFAULT_NIM_CONFIG,
   DEFAULT_WECOM_CONFIG,
   DEFAULT_IM_SETTINGS,
 } from './types';
@@ -65,7 +63,7 @@ export class IMStore {
    * Migrate existing IM configs to ensure stable defaults.
    */
   private migrateDefaults(): void {
-    const platforms = ['dingtalk', 'feishu', 'telegram', 'discord', 'nim', 'qq', 'wecom'] as const;
+    const platforms = ['dingtalk', 'feishu', 'telegram', 'discord', 'qq', 'wecom'] as const;
     let changed = false;
 
     for (const platform of platforms) {
@@ -165,7 +163,6 @@ export class IMStore {
     const feishu = this.getConfigValue<FeishuConfig>('feishu') ?? DEFAULT_FEISHU_CONFIG;
     const telegram = this.getConfigValue<TelegramConfig>('telegram') ?? DEFAULT_TELEGRAM_CONFIG;
     const discord = this.getConfigValue<DiscordConfig>('discord') ?? DEFAULT_DISCORD_CONFIG;
-    const nim = this.getConfigValue<NimConfig>('nim') ?? DEFAULT_NIM_CONFIG;
     const qq = this.getConfigValue<QQConfig>('qq') ?? DEFAULT_QQ_CONFIG;
     const wecom = this.getConfigValue<WecomConfig>('wecom') ?? DEFAULT_WECOM_CONFIG;
     const settings = this.getConfigValue<IMSettings>('settings') ?? DEFAULT_IM_SETTINGS;
@@ -186,7 +183,6 @@ export class IMStore {
       feishu: resolveEnabled(feishu, DEFAULT_FEISHU_CONFIG),
       telegram: resolveEnabled(telegram, DEFAULT_TELEGRAM_CONFIG),
       discord: resolveEnabled(discord, DEFAULT_DISCORD_CONFIG),
-      nim: resolveEnabled(nim, DEFAULT_NIM_CONFIG),
       qq: resolveEnabled(qq, DEFAULT_QQ_CONFIG),
       wecom: resolveEnabled(wecom, DEFAULT_WECOM_CONFIG),
       settings: { ...DEFAULT_IM_SETTINGS, ...settings },
@@ -205,9 +201,6 @@ export class IMStore {
     }
     if (config.discord) {
       this.setDiscordConfig(config.discord);
-    }
-    if (config.nim) {
-      this.setNimConfig(config.nim);
     }
     if (config.qq) {
       this.setQQConfig(config.qq);
@@ -268,18 +261,6 @@ export class IMStore {
     this.setConfigValue('discord', { ...current, ...config });
   }
 
-  // ==================== NIM Config ====================
-
-  getNimConfig(): NimConfig {
-    const stored = this.getConfigValue<NimConfig>('nim');
-    return { ...DEFAULT_NIM_CONFIG, ...stored };
-  }
-
-  setNimConfig(config: Partial<NimConfig>): void {
-    const current = this.getNimConfig();
-    this.setConfigValue('nim', { ...current, ...config });
-  }
-
   // ==================== QQ Config ====================
 
   getQQConfig(): QQConfig {
@@ -335,10 +316,9 @@ export class IMStore {
     const hasFeishu = !!(config.feishu.appId && config.feishu.appSecret);
     const hasTelegram = !!config.telegram.botToken;
     const hasDiscord = !!config.discord.botToken;
-    const hasNim = !!(config.nim.appKey && config.nim.account && config.nim.token);
     const hasQQ = !!(config.qq?.appId && config.qq?.appSecret);
     const hasWecom = !!(config.wecom?.botId && config.wecom?.secret);
-    return hasDingTalk || hasFeishu || hasTelegram || hasDiscord || hasNim || hasQQ || hasWecom;
+    return hasDingTalk || hasFeishu || hasTelegram || hasDiscord || hasQQ || hasWecom;
   }
 
   // ==================== Notification Target Persistence ====================

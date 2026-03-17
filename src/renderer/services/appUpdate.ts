@@ -3,32 +3,6 @@ import { getUpdateCheckUrl, getFallbackDownloadUrl } from './endpoints';
 export const UPDATE_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export const UPDATE_HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000;
 
-type ChangeLogLang = {
-  title?: string;
-  content?: string[];
-};
-
-type PlatformDownload = {
-  url?: string;
-};
-
-type UpdateApiResponse = {
-  code?: number;
-  data?: {
-    value?: {
-      version?: string;
-      date?: string;
-      changeLog?: {
-        ch?: ChangeLogLang;
-        en?: ChangeLogLang;
-      };
-      macIntel?: PlatformDownload;
-      macArm?: PlatformDownload;
-      windowsX64?: PlatformDownload;
-    };
-  };
-};
-
 export type ChangeLogEntry = { title: string; content: string[] };
 
 export interface AppUpdateDownloadProgress {
@@ -43,6 +17,21 @@ export interface AppUpdateInfo {
   date: string;
   changeLog: { zh: ChangeLogEntry; en: ChangeLogEntry };
   url: string;
+}
+
+// GitHub Releases API response types
+interface GitHubReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+interface GitHubReleaseResponse {
+  tag_name: string;
+  name: string;
+  body: string;
+  published_at: string;
+  assets: GitHubReleaseAsset[];
 }
 
 const toVersionParts = (version: string): number[] => (
@@ -73,21 +62,30 @@ const isNewerVersion = (latestVersion: string, currentVersion: string): boolean 
   compareVersions(latestVersion, currentVersion) > 0
 );
 
-type UpdateValue = NonNullable<NonNullable<UpdateApiResponse['data']>['value']>;
-
-const getPlatformDownloadUrl = (value: UpdateValue | undefined): string => {
+const getPlatformAssetUrl = (assets: GitHubReleaseAsset[]): string => {
   const { platform, arch } = window.electron;
 
   if (platform === 'darwin') {
-    const download = arch === 'arm64' ? value?.macArm : value?.macIntel;
-    return download?.url?.trim() || getFallbackDownloadUrl();
+    const suffix = arch === 'arm64' ? 'arm64.dmg' : 'x64.dmg';
+    const asset = assets.find((a) => a.name.endsWith(suffix) && !a.name.endsWith('.blockmap'));
+    // Fallback: any .dmg that isn't a blockmap
+    const fallbackAsset = asset || assets.find((a) => a.name.endsWith('.dmg') && !a.name.endsWith('.blockmap'));
+    return fallbackAsset?.browser_download_url || getFallbackDownloadUrl();
   }
 
   if (platform === 'win32') {
-    return value?.windowsX64?.url?.trim() || getFallbackDownloadUrl();
+    const asset = assets.find((a) => a.name.endsWith('.exe'));
+    return asset?.browser_download_url || getFallbackDownloadUrl();
   }
 
   return getFallbackDownloadUrl();
+};
+
+const parseReleaseBody = (body: string): ChangeLogEntry => {
+  const lines = body.split('\n').filter((l) => l.trim());
+  const title = lines[0] || '';
+  const content = lines.slice(1).map((l) => l.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+  return { title, content };
 };
 
 export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpdateInfo | null> => {
@@ -95,7 +93,8 @@ export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpda
     url: getUpdateCheckUrl(),
     method: 'GET',
     headers: {
-      Accept: 'application/json',
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'OpenJobsAI-Updater',
     },
   });
 
@@ -103,29 +102,22 @@ export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpda
     return null;
   }
 
-  const payload = response.data as UpdateApiResponse;
-  if (payload.code !== 0) {
-    return null;
-  }
+  const release = response.data as GitHubReleaseResponse;
+  const latestVersion = release.tag_name?.replace(/^v/, '').trim();
 
-  const value = payload.data?.value;
-  const latestVersion = value?.version?.trim();
   if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {
     return null;
   }
 
-  const toEntry = (log?: ChangeLogLang): ChangeLogEntry => ({
-    title: typeof log?.title === 'string' ? log.title : '',
-    content: Array.isArray(log?.content) ? log.content : [],
-  });
+  const changelog = parseReleaseBody(release.body || '');
 
   return {
     latestVersion,
-    date: value?.date?.trim() || '',
+    date: release.published_at?.split('T')[0] || '',
     changeLog: {
-      zh: toEntry(value?.changeLog?.ch),
-      en: toEntry(value?.changeLog?.en),
+      zh: changelog,
+      en: changelog,
     },
-    url: getPlatformDownloadUrl(value),
+    url: getPlatformAssetUrl(release.assets || []),
   };
 };

@@ -9,14 +9,12 @@ const isTestMode = () => {
   return configService.getConfig().app?.testMode === true;
 };
 
-// 自动更新
-export const getUpdateCheckUrl = () => isTestMode()
-  ? 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/test/update'
-  : 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/prod/update';
+// 自动更新 — GitHub Releases API (public repo)
+export const getUpdateCheckUrl = () =>
+  'https://api.github.com/repos/Digidai/openjobs-ai-releases/releases/latest';
 
-export const getFallbackDownloadUrl = () => isTestMode()
-  ? 'https://lobsterai.inner.youdao.com/#/download-list'
-  : 'https://lobsterai.youdao.com/#/download-list';
+export const getFallbackDownloadUrl = () =>
+  'https://github.com/Digidai/openjobs-ai-releases/releases';
 
 // Skill 商店
 export const getSkillStoreUrl = () => isTestMode()

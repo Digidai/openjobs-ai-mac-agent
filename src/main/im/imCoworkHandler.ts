@@ -266,13 +266,6 @@ export class IMCoworkHandler extends EventEmitter {
 
   /**
    * Build a human-readable session title based on platform and sender identity.
-   *
-   * NIM title rules:
-   *   - P2P direct:  "云信-P2P-{senderName|senderId}"
-   *   - Team group:  "云信-群聊-{groupName|teamId}"
-   *   - QChat:       "云信-圈组-{groupName|channelId}"
-   *
-   * Other platforms use the original "IM-{platform}-{timestamp}" style.
    */
   private buildSessionTitle(
     platform: IMPlatform,
@@ -280,19 +273,6 @@ export class IMCoworkHandler extends EventEmitter {
     senderId?: string,
     message?: IMMessage
   ): string {
-    if (platform === 'nim') {
-      if (message?.chatSubType === 'qchat') {
-        const channelLabel = message.groupName || _imConversationId;
-        return `云信-圈组-${channelLabel}`;
-      }
-      if (message?.chatType === 'group') {
-        const groupLabel = message.groupName || senderId || _imConversationId;
-        return `云信-群聊-${groupLabel}`;
-      }
-      // P2P direct message
-      const peerLabel = message?.senderName || senderId || _imConversationId;
-      return `云信-P2P-${peerLabel}`;
-    }
     return `IM-${platform}-${Date.now()}`;
   }
 
