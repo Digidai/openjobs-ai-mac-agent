@@ -171,7 +171,14 @@ class SkillService {
   }
   async fetchMarketplaceSkills(): Promise<{ skills: MarketplaceSkill[]; tags: MarketTag[] }> {
     try {
-      const response = await fetch(getSkillStoreUrl());
+      const skillStoreUrl = getSkillStoreUrl();
+      if (!skillStoreUrl) {
+        this.localSkillDescriptions.clear();
+        this.marketplaceSkillDescriptions.clear();
+        return { skills: [], tags: [] };
+      }
+
+      const response = await fetch(skillStoreUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }

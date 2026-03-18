@@ -1194,9 +1194,12 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('mcp:fetchMarketplace', async () => {
-    const url = app.isPackaged
-      ? 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/prod/mcp-marketplace'
-      : 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/test/mcp-marketplace';
+    // The public OpenJobs MCP marketplace is not available yet.
+    // Return an empty result so the marketplace tab degrades gracefully.
+    const url = process.env.OPENJOBS_MCP_MARKETPLACE_URL?.trim();
+    if (!url) {
+      return { success: true, data: { servers: [], categories: [] } };
+    }
     try {
       const https = await import('https');
       const data = await new Promise<string>((resolve, reject) => {
@@ -2183,6 +2186,21 @@ if (!gotTheLock) {
   // App update download & install
   ipcMain.handle('appUpdate:download', async (event, url: string) => {
     try {
+      // Validate download URL: must be HTTPS and from trusted GitHub hosts
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return { success: false, error: 'Invalid download URL' };
+      }
+      if (parsedUrl.protocol !== 'https:') {
+        return { success: false, error: 'Invalid download URL' };
+      }
+      const allowedHosts = ['github.com', 'objects.githubusercontent.com'];
+      if (!allowedHosts.includes(parsedUrl.hostname)) {
+        return { success: false, error: 'Invalid download URL' };
+      }
+
       const filePath = await downloadUpdate(url, (progress) => {
         if (!event.sender.isDestroyed()) {
           event.sender.send('appUpdate:downloadProgress', progress);
@@ -2201,6 +2219,24 @@ if (!gotTheLock) {
 
   ipcMain.handle('appUpdate:install', async (_event, filePath: string) => {
     try {
+      // Validate that filePath is within the temp directory
+      const tempDir = app.getPath('temp');
+      const resolvedPath = path.resolve(filePath);
+      const relativeToTemp = path.relative(tempDir, resolvedPath);
+      if (!relativeToTemp || relativeToTemp.startsWith('..') || path.isAbsolute(relativeToTemp)) {
+        return { success: false, error: 'Invalid update file path' };
+      }
+      // Validate that the filename matches expected update pattern
+      const fileName = path.basename(resolvedPath);
+      if (!fileName.startsWith('openjobsai-update-')) {
+        return { success: false, error: 'Invalid update file path' };
+      }
+      // Validate that the file extension is .dmg or .exe
+      const ext = path.extname(fileName).toLowerCase();
+      if (ext !== '.dmg' && ext !== '.exe') {
+        return { success: false, error: 'Invalid update file path' };
+      }
+
       await installUpdate(filePath);
       return { success: true };
     } catch (error) {

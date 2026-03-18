@@ -35,7 +35,7 @@ official: true
 > | 发到 Telegram/TG/电报 | `"telegram"` |
 > | 发到 Discord | `"discord"` |
 > | 发到企业微信/WeCom | `"wecom"` |
-> | 发到云信/网易云信/NIM | `"nim"` |
+> | 发到 NIM | `"nim"` |
 > | 发到小蜜蜂/Xiaomifeng | `"xiaomifeng"` |
 
 ### 原则三：从用户自然语言中正确提取各字段

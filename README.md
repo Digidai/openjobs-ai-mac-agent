@@ -1,11 +1,11 @@
-# LobsterAI — All-in-One Personal Assistant Agent
+# OpenJobs AI — All-in-One Personal Assistant Agent
 
 <p align="center">
-  <img src="public/logo.png" alt="LobsterAI" width="120">
+  <img src="public/logo.png" alt="OpenJobs AI" width="120">
 </p>
 
 <p align="center">
-  <strong>A 24/7 personal assistant Agent that gets things done, built by NetEase Youdao</strong>
+  <strong>A 24/7 personal assistant Agent that gets things done, built by OpenJobs AI</strong>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ---
 
-**LobsterAI** is an all-in-one personal assistant Agent developed by [NetEase Youdao](https://www.youdao.com/). It works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
+**OpenJobs AI** is an all-in-one personal assistant Agent developed by [OpenJobs AI](https://openjobs-ai.com). It works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
 
 At its core is **Cowork mode** — it executes tools, manipulates files, and runs commands in a local or sandboxed environment, all under your supervision. You can also chat with agent via Telegram, Discord, DingTalk or Feishu (Lark) and get work done from your phone anytime, anywhere.
 
@@ -57,8 +57,8 @@ At its core is **Cowork mode** — it executes tools, manipulates files, and run
 
 ```bash
 # Clone the repository
-git clone https://github.com/netease-youdao/LobsterAI.git
-cd lobsterai
+git clone https://github.com/Digidai/openjobs-ai-mac-agent.git
+cd openjobs-ai-mac-agent
 
 # Install dependencies
 npm install
@@ -104,7 +104,7 @@ npm run dist:linux
 ```
 
 Windows builds bundle a portable Python runtime under `resources/python-win` (included as installer resource `python-win`), so end users do not need to install Python manually.
-The bundled runtime is interpreter-focused and does not preinstall LobsterAI skill Python packages; those can be installed at runtime on demand.
+The bundled runtime is interpreter-focused and does not preinstall OpenJobs AI skill Python packages; those can be installed at runtime on demand.
 By default, packaging downloads the official Python embeddable runtime from python.org if no prebuilt archive is provided.
 For offline/non-network builds, provide a prebuilt runtime archive explicitly.
 
@@ -115,7 +115,7 @@ Offline/runtime source options for packaging:
 
 ## Architecture
 
-LobsterAI uses Electron's strict process isolation. All cross-process communication goes through IPC.
+OpenJobs AI uses Electron's strict process isolation. All cross-process communication goes through IPC.
 
 ### Process Model
 
@@ -179,7 +179,7 @@ SKILLs/                              # Skill definitions
 
 ## Cowork System
 
-Cowork is the core feature of LobsterAI — an AI working session system built on the Claude Agent SDK. Designed for productivity scenarios, it can autonomously complete complex tasks like data analysis, document generation, and information retrieval.
+Cowork is the core feature of OpenJobs AI — an AI working session system built on the Claude Agent SDK. Designed for productivity scenarios, it can autonomously complete complex tasks like data analysis, document generation, and information retrieval.
 
 ### Execution Modes
 
@@ -205,7 +205,7 @@ All tool invocations involving file system access, terminal commands, or network
 
 ## Skills System
 
-LobsterAI ships with 16 built-in skills covering productivity, creative, and automation scenarios, configured via `SKILLs/skills.config.json`:
+OpenJobs AI ships with 16 built-in skills covering productivity, creative, and automation scenarios, configured via `SKILLs/skills.config.json`:
 
 | Skill | Function | Typical Use Case |
 |-------|----------|-----------------|
@@ -230,7 +230,7 @@ Custom skills can be created via `skill-creator` and hot-loaded at runtime.
 
 ## Scheduled Tasks
 
-LobsterAI supports scheduled tasks that let the Agent automatically execute recurring work on a set schedule.
+OpenJobs AI supports scheduled tasks that let the Agent automatically execute recurring work on a set schedule.
 
 ### How to Create
 
@@ -251,7 +251,7 @@ Scheduled tasks are powered by Cron expressions, supporting minute, hourly, dail
 
 ## IM Integration — Mobile Remote Control
 
-LobsterAI can bridge the Agent to multiple IM platforms. Send a message from your phone via IM to remotely trigger the desktop Agent — command your personal assistant anytime, anywhere.
+OpenJobs AI can bridge the Agent to multiple IM platforms. Send a message from your phone via IM to remotely trigger the desktop Agent — command your personal assistant anytime, anywhere.
 
 | Platform | Protocol | Description |
 |----------|----------|-------------|
@@ -259,19 +259,18 @@ LobsterAI can bridge the Agent to multiple IM platforms. Send a message from you
 | Feishu | Lark SDK | Feishu app robot |
 | Telegram | grammY | Bot API integration |
 | Discord | discord.js | Discord bot integration |
-| NetEase IM | node-nim V2 SDK | NetEase IM P2P messaging |
-| NetEase Bee | node-nim V2 SDK | NetEase Bee Personal Digital Assistant |
+| NIM | node-nim V2 SDK | NIM P2P messaging |
 
 Configure the corresponding platform Token/Secret in the Settings panel to enable. Once set up, you can send instructions directly to the Agent from your phone IM (e.g., "analyze this dataset", "make a weekly summary PPT"), and the Agent will execute on the desktop and return results.
 
 ## Persistent Memory
 
-LobsterAI has a built-in memory system that remembers your personal information and preferences across sessions, making the Agent more helpful the more you use it.
+OpenJobs AI has a built-in memory system that remembers your personal information and preferences across sessions, making the Agent more helpful the more you use it.
 
 ### How Memories Are Captured
 
 - **Automatic Extraction** — During conversations, the system automatically identifies and stores your personal details (name, occupation), preferences (language, format, style), and personal facts (pets, tools you use) — no manual effort required
-- **Explicit Requests** — Tell the Agent directly, e.g., "remember that I prefer Markdown format" or "note down that my project is called LobsterAI," and it will store the memory with higher confidence
+- **Explicit Requests** — Tell the Agent directly, e.g., "remember that I prefer Markdown format" or "note down that my project is called OpenJobs AI," and it will store the memory with higher confidence
 - **Manual Management** — Add, edit, or delete memory entries in the Memory management panel within Settings
 
 ### How It Works
@@ -299,7 +298,7 @@ Extracted memories are automatically deduplicated and merged, then injected into
 
 ## Data Storage
 
-All data is stored in a local SQLite database (`lobsterai.sqlite` in the user data directory).
+All data is stored in a local SQLite database (`openjobsai.sqlite` in the user data directory).
 
 | Table | Purpose |
 |-------|---------|
@@ -311,7 +310,7 @@ All data is stored in a local SQLite database (`lobsterai.sqlite` in the user da
 
 ## Security Model
 
-LobsterAI enforces security at multiple layers:
+OpenJobs AI enforces security at multiple layers:
 
 - **Process Isolation** — Context isolation enabled, node integration disabled
 - **Permission Gating** — Tool invocations require explicit user approval
@@ -379,8 +378,8 @@ Please include in your PR description: a summary of changes, linked issue (if an
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=netease-youdao/LobsterAI&type=date&legend=top-left)](https://www.star-history.com/#netease-youdao/LobsterAI&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=Digidai/openjobs-ai-mac-agent&type=date&legend=top-left)](https://www.star-history.com/#Digidai/openjobs-ai-mac-agent&type=date&legend=top-left)
 
 ---
 
-Built and maintained by [NetEase Youdao](https://www.youdao.com/).
+Built and maintained by [OpenJobs AI](https://openjobs-ai.com).

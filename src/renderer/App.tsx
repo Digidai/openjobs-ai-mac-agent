@@ -39,9 +39,12 @@ const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updateModalState, setUpdateModalState] = useState<'info' | 'downloading' | 'installing' | 'error'>('info');
+  const [updateModalState, setUpdateModalState] = useState<'info' | 'downloading' | 'downloaded' | 'installing' | 'error'>('info');
   const [downloadProgress, setDownloadProgress] = useState<AppUpdateDownloadProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateErrorSource, setUpdateErrorSource] = useState<'download' | 'install'>('download');
+  const [downloadedFilePath, setDownloadedFilePath] = useState<string | null>(null);
+  const progressUnsubRef = useRef<(() => void) | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const hasInitialized = useRef(false);
   const dispatch = useDispatch();
@@ -265,11 +268,12 @@ const App: React.FC = () => {
 
   const handleOpenUpdateModal = useCallback(() => {
     if (!updateInfo) return;
-    setUpdateModalState('info');
+    // If we already have a downloaded file, go straight to the downloaded state
+    setUpdateModalState(downloadedFilePath ? 'downloaded' : 'info');
     setUpdateError(null);
     setDownloadProgress(null);
     setShowUpdateModal(true);
-  }, [updateInfo]);
+  }, [updateInfo, downloadedFilePath]);
 
   const handleUpdateFound = useCallback((info: AppUpdateInfo) => {
     setUpdateInfo(info);
@@ -280,10 +284,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleConfirmUpdate = useCallback(async () => {
-    if (!updateInfo) return;
+    if (!updateInfo || updateModalState === 'downloading') return;
 
-    // If the URL is a fallback page (not a direct file download), open in browser
-    if (updateInfo.url.includes('#') || updateInfo.url.endsWith('/download-list')) {
+    // If the URL is a fallback page (not a direct download), open in browser
+    const isFallbackUrl = updateInfo.url.includes('#') || !/\.(dmg|exe|AppImage|deb)$/i.test(updateInfo.url);
+    if (isFallbackUrl) {
       setShowUpdateModal(false);
       try {
         const result = await window.electron.shell.openExternal(updateInfo.url);
@@ -300,56 +305,115 @@ const App: React.FC = () => {
     setUpdateModalState('downloading');
     setDownloadProgress(null);
     setUpdateError(null);
+    setDownloadedFilePath(null);
 
     const unsubscribe = window.electron.appUpdate.onDownloadProgress((progress) => {
       setDownloadProgress(progress);
     });
+    progressUnsubRef.current = unsubscribe;
 
     try {
       const downloadResult = await window.electron.appUpdate.download(updateInfo.url);
       unsubscribe();
+      progressUnsubRef.current = null;
 
       if (!downloadResult.success) {
-        // If user cancelled, handleCancelDownload already set the state — don't overwrite
         if (downloadResult.error === 'Download cancelled') {
           return;
         }
+        setUpdateErrorSource('download');
         setUpdateModalState('error');
         setUpdateError(downloadResult.error || i18nService.t('updateDownloadFailed'));
         return;
       }
 
-      setUpdateModalState('installing');
-      const installResult = await window.electron.appUpdate.install(downloadResult.filePath!);
+      // Download complete — wait for user to click "Update & Restart"
+      if (!downloadResult.filePath) {
+        setUpdateErrorSource('download');
+        setUpdateModalState('error');
+        setUpdateError(i18nService.t('updateDownloadFailed'));
+        return;
+      }
+      setDownloadedFilePath(downloadResult.filePath);
+      setUpdateModalState('downloaded');
+    } catch (error) {
+      unsubscribe();
+      progressUnsubRef.current = null;
+      const msg = error instanceof Error ? error.message : '';
+      if (msg === 'Download cancelled') {
+        return;
+      }
+      setUpdateErrorSource('download');
+      setUpdateModalState('error');
+      setUpdateError(msg || i18nService.t('updateDownloadFailed'));
+    }
+  }, [updateInfo, updateModalState, showToast]);
 
+  const isStreaming = useSelector((state: RootState) => state.cowork.isStreaming);
+
+  const handleInstallUpdate = useCallback(async () => {
+    if (!downloadedFilePath || updateModalState === 'installing') return;
+
+    // Warn if a cowork session is actively running
+    if (isStreaming) {
+      const confirmed = window.confirm(i18nService.t('updateRestartWarning'));
+      if (!confirmed) return;
+    }
+
+    setUpdateModalState('installing');
+    let timeoutId: number | null = null;
+    try {
+      const timeout = new Promise<{ success: false; error: string }>((resolve) =>
+        {
+          timeoutId = window.setTimeout(
+            () => resolve({ success: false, error: i18nService.t('updateInstallTimeout') }),
+            90_000,
+          );
+        }
+      );
+      const installResult = await Promise.race([
+        window.electron.appUpdate.install(downloadedFilePath),
+        timeout,
+      ]);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       if (!installResult.success) {
+        setUpdateErrorSource('install');
         setUpdateModalState('error');
         setUpdateError(installResult.error || i18nService.t('updateInstallFailed'));
       }
       // If successful, app will quit and relaunch
     } catch (error) {
-      unsubscribe();
-      const msg = error instanceof Error ? error.message : '';
-      // If user cancelled, handleCancelDownload already set the state — don't overwrite
-      if (msg === 'Download cancelled') {
-        return;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
       }
+      const msg = error instanceof Error ? error.message : '';
+      setUpdateErrorSource('install');
       setUpdateModalState('error');
-      setUpdateError(msg || i18nService.t('updateDownloadFailed'));
+      setUpdateError(msg || i18nService.t('updateInstallFailed'));
     }
-  }, [updateInfo, showToast]);
+  }, [downloadedFilePath, updateModalState, isStreaming]);
 
   const handleCancelDownload = useCallback(async () => {
+    progressUnsubRef.current?.();
+    progressUnsubRef.current = null;
     await window.electron.appUpdate.cancelDownload();
     setUpdateModalState('info');
     setDownloadProgress(null);
+    setDownloadedFilePath(null);
   }, []);
 
   const handleRetryUpdate = useCallback(() => {
-    setUpdateModalState('info');
     setUpdateError(null);
     setDownloadProgress(null);
-  }, []);
+    if (updateErrorSource === 'install' && downloadedFilePath) {
+      void handleInstallUpdate();
+      return;
+    }
+    setDownloadedFilePath(null);
+    void handleConfirmUpdate();
+  }, [downloadedFilePath, handleConfirmUpdate, handleInstallUpdate, updateErrorSource]);
 
   const handlePermissionResponse = useCallback(async (result: CoworkPermissionResult) => {
     if (!pendingPermission) return;
@@ -428,6 +492,8 @@ const App: React.FC = () => {
       if (toastTimerRef.current) {
         window.clearTimeout(toastTimerRef.current);
       }
+      progressUnsubRef.current?.();
+      progressUnsubRef.current = null;
     };
   }, []);
 
@@ -477,6 +543,8 @@ const App: React.FC = () => {
         const version = await window.electron.appInfo.getVersion();
         const info = await checkForAppUpdate(version);
         if (info) {
+          // New version found — clear any previously downloaded file (may be outdated)
+          setDownloadedFilePath(null);
           setUpdateInfo(info);
         }
       } catch {
@@ -484,8 +552,9 @@ const App: React.FC = () => {
       }
     };
 
-    // Check on startup (delayed 10s to not block launch)
-    const startupTimer = setTimeout(runCheck, 10_000);
+    // Check on startup with jitter (10-60s) to spread GitHub API load
+    const startupDelay = 10_000 + Math.floor(Math.random() * 50_000);
+    const startupTimer = setTimeout(runCheck, startupDelay);
     // Then every 12 hours
     const pollTimer = setInterval(runCheck, UPDATE_POLL_INTERVAL_MS);
 
@@ -529,6 +598,7 @@ const App: React.FC = () => {
     <AppUpdateBadge
       latestVersion={updateInfo.latestVersion}
       onClick={handleOpenUpdateModal}
+      downloaded={!!downloadedFilePath}
     />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
@@ -655,17 +725,20 @@ const App: React.FC = () => {
         <AppUpdateModal
           updateInfo={updateInfo}
           onCancel={() => {
-            if (updateModalState === 'info' || updateModalState === 'error') {
+            if (updateModalState === 'info' || updateModalState === 'downloaded' || updateModalState === 'error') {
               setShowUpdateModal(false);
               setUpdateModalState('info');
               setUpdateError(null);
               setDownloadProgress(null);
+              // Keep downloadedFilePath so user can resume install later via badge click
             }
           }}
           onConfirm={handleConfirmUpdate}
+          onInstall={handleInstallUpdate}
           modalState={updateModalState}
           downloadProgress={downloadProgress}
           errorMessage={updateError}
+          errorSource={updateErrorSource}
           onCancelDownload={handleCancelDownload}
           onRetry={handleRetryUpdate}
         />

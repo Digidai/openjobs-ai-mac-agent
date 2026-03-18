@@ -1,6 +1,6 @@
 import { app, session } from 'electron';
 import { exec, spawn } from 'child_process';
-import fs from 'fs';
+import fs, { existsSync } from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -57,12 +57,15 @@ export async function downloadUpdate(
 
   console.log(`[AppUpdate] Starting download: ${url}`);
 
-  // Validate URL
+  // Validate URL - must be HTTPS
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
   } catch {
     throw new Error(`Invalid download URL: ${url}`);
+  }
+  if (parsedUrl.protocol !== 'https:') {
+    throw new Error('Only HTTPS download URLs are allowed');
   }
 
   const ext = path.extname(parsedUrl.pathname) || (process.platform === 'darwin' ? '.dmg' : '.exe');
@@ -250,7 +253,7 @@ async function installMacDmg(dmgPath: string): Promise<void> {
     // Mount the DMG (timeout 60s)
     console.log('[AppUpdate] Mounting DMG...');
     const mountOutput = await execAsync(
-      `hdiutil attach ${shellEscape(dmgPath)} -nobrowse -noautoopen -noverify`,
+      `hdiutil attach ${shellEscape(dmgPath)} -nobrowse -noautoopen`,
       60_000,
     );
 
@@ -287,28 +290,51 @@ async function installMacDmg(dmgPath: string): Promise<void> {
     }
     console.log(`[AppUpdate] Target app: ${targetApp}`);
 
-    // Try to copy the .app bundle (use shellEscape to prevent injection)
+    // Atomic app replacement: backup old → copy new → remove backup (or rollback)
+    const backupApp = `${targetApp}.backup`;
     try {
-      console.log('[AppUpdate] Copying app bundle...');
-      await execAsync(
-        `rm -rf ${shellEscape(targetApp)} && cp -R ${shellEscape(sourceApp)} ${shellEscape(targetApp)}`,
-        300_000,
-      );
+      console.log('[AppUpdate] Copying app bundle (atomic replacement)...');
+      // Step 1: Backup old app
+      if (existsSync(targetApp)) {
+        await execAsync(`rm -rf ${shellEscape(backupApp)} && mv ${shellEscape(targetApp)} ${shellEscape(backupApp)}`, 120_000);
+      }
+      // Step 2: Copy new app
+      await execAsync(`cp -R ${shellEscape(sourceApp)} ${shellEscape(targetApp)}`, 300_000);
+      // Step 3: Remove backup on success
+      if (existsSync(backupApp)) {
+        await execAsync(`rm -rf ${shellEscape(backupApp)}`, 60_000).catch(() => {});
+      }
       console.log('[AppUpdate] Copy succeeded');
     } catch {
-      // Permission denied: try with admin privileges via osascript
+      // Rollback: restore backup if copy failed
+      if (existsSync(backupApp) && !existsSync(targetApp)) {
+        try {
+          await execAsync(`mv ${shellEscape(backupApp)} ${shellEscape(targetApp)}`, 60_000);
+        } catch (rollbackError) {
+          console.warn('[AppUpdate] Failed to restore app bundle after copy failure:', rollbackError);
+        }
+      }
+      // Try with admin privileges
       console.log('[AppUpdate] Normal copy failed, requesting admin privileges...');
       try {
-        // For osascript, escape backslashes and double quotes for the inner shell
         const escapeForInnerShell = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
         const escapedTarget = escapeForInnerShell(targetApp);
         const escapedSource = escapeForInnerShell(sourceApp);
+        const escapedBackup = escapeForInnerShell(backupApp);
         await execAsync(
-          `osascript -e 'do shell script "rm -rf \\"${escapedTarget}\\" && cp -R \\"${escapedSource}\\" \\"${escapedTarget}\\"" with administrator privileges'`,
+          `osascript -e 'do shell script "mv \\"${escapedTarget}\\" \\"${escapedBackup}\\" 2>/dev/null; cp -R \\"${escapedSource}\\" \\"${escapedTarget}\\" && rm -rf \\"${escapedBackup}\\"" with administrator privileges'`,
           300_000,
         );
         console.log('[AppUpdate] Admin copy succeeded');
       } catch (adminError) {
+        // Rollback admin attempt
+        if (existsSync(backupApp) && !existsSync(targetApp)) {
+          try {
+            await execAsync(`mv ${shellEscape(backupApp)} ${shellEscape(targetApp)}`, 60_000);
+          } catch (rollbackError) {
+            console.warn('[AppUpdate] Failed to restore app bundle after admin copy failure:', rollbackError);
+          }
+        }
         throw new Error(
           `Installation failed: insufficient permissions. ${adminError instanceof Error ? adminError.message : ''}`,
         );
@@ -330,10 +356,20 @@ async function installMacDmg(dmgPath: string): Promise<void> {
       // Best effort
     }
 
-    // Relaunch from the new app location
+    // Relaunch from the new app location — read CFBundleExecutable from Info.plist
     const executablePath = path.join(targetApp, 'Contents', 'MacOS');
-    const execEntries = await fs.promises.readdir(executablePath);
-    const executable = execEntries[0]; // Should be the app executable
+    let executable: string | undefined;
+    try {
+      const plistOutput = await execAsync(
+        `plutil -extract CFBundleExecutable raw ${shellEscape(path.join(targetApp, 'Contents', 'Info.plist'))}`,
+        10_000,
+      );
+      executable = plistOutput.trim();
+    } catch {
+      // Fallback to first entry in MacOS directory
+      const execEntries = await fs.promises.readdir(executablePath);
+      executable = execEntries[0];
+    }
 
     if (executable) {
       console.log(`[AppUpdate] Relaunching: ${path.join(executablePath, executable)}`);

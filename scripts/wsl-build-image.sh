@@ -5,7 +5,7 @@ echo "============================================"
 echo " Sandbox VM Image Builder (WSL)"
 echo "============================================"
 
-PROJECT=/mnt/d/project/lobsterai
+PROJECT=${PROJECT:-/mnt/d/project/openjobs-ai-mac-agent}
 BROOT=/root/sandbox-build
 OUTDIR=$PROJECT/sandbox/image/out
 

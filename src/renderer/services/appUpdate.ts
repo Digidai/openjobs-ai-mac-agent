@@ -1,7 +1,6 @@
 import { getUpdateCheckUrl, getFallbackDownloadUrl } from './endpoints';
 
 export const UPDATE_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
-export const UPDATE_HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000;
 
 export type ChangeLogEntry = { title: string; content: string[] };
 
@@ -31,8 +30,13 @@ interface GitHubReleaseResponse {
   name: string;
   body: string;
   published_at: string;
+  prerelease: boolean;
+  draft: boolean;
   assets: GitHubReleaseAsset[];
 }
+
+// ETag cache for conditional requests (reduces GitHub API rate limit usage)
+let cachedETag: string | null = null;
 
 const toVersionParts = (version: string): number[] => (
   version
@@ -68,7 +72,6 @@ const getPlatformAssetUrl = (assets: GitHubReleaseAsset[]): string => {
   if (platform === 'darwin') {
     const suffix = arch === 'arm64' ? 'arm64.dmg' : 'x64.dmg';
     const asset = assets.find((a) => a.name.endsWith(suffix) && !a.name.endsWith('.blockmap'));
-    // Fallback: any .dmg that isn't a blockmap
     const fallbackAsset = asset || assets.find((a) => a.name.endsWith('.dmg') && !a.name.endsWith('.blockmap'));
     return fallbackAsset?.browser_download_url || getFallbackDownloadUrl();
   }
@@ -89,20 +92,42 @@ const parseReleaseBody = (body: string): ChangeLogEntry => {
 };
 
 export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpdateInfo | null> => {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'User-Agent': 'OpenJobsAI-Updater',
+  };
+  // Use ETag for conditional requests (304 Not Modified doesn't count against rate limit)
+  if (cachedETag) {
+    headers['If-None-Match'] = cachedETag;
+  }
+
   const response = await window.electron.api.fetch({
     url: getUpdateCheckUrl(),
     method: 'GET',
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'OpenJobsAI-Updater',
-    },
+    headers,
   });
+
+  // 304 Not Modified — no new release since last check
+  if (response.status === 304) {
+    return null;
+  }
 
   if (!response.ok || typeof response.data !== 'object' || response.data === null) {
     return null;
   }
 
+  // Cache ETag for next request
+  if (response.headers?.etag) {
+    cachedETag = response.headers.etag;
+  }
+
   const release = response.data as GitHubReleaseResponse;
+
+  // Skip pre-release and draft versions
+  if (release.prerelease || release.draft) {
+    return null;
+  }
+
   const latestVersion = release.tag_name?.replace(/^v/, '').trim();
 
   if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {

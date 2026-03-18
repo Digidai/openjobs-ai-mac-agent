@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { i18nService } from '../../services/i18n';
 import type { AppUpdateInfo, AppUpdateDownloadProgress } from '../../services/appUpdate';
 
-export type UpdateModalState = 'info' | 'downloading' | 'installing' | 'error';
+export type UpdateModalState = 'info' | 'downloading' | 'downloaded' | 'installing' | 'error';
 
 interface AppUpdateModalProps {
   updateInfo: AppUpdateInfo;
   onConfirm: () => void;
   onCancel: () => void;
+  onInstall: () => void;
   modalState: UpdateModalState;
   downloadProgress: AppUpdateDownloadProgress | null;
   errorMessage: string | null;
+  errorSource: 'download' | 'install';
   onCancelDownload: () => void;
   onRetry: () => void;
 }
@@ -22,7 +24,7 @@ function formatBytes(bytes: number): string {
 }
 
 function formatSpeed(bytesPerSecond: number | undefined): string {
-  if (!bytesPerSecond) return '';
+  if (bytesPerSecond == null) return '';
   return `${formatBytes(bytesPerSecond)}/s`;
 }
 
@@ -30,22 +32,37 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   updateInfo,
   onConfirm,
   onCancel,
+  onInstall,
   modalState,
   downloadProgress,
   errorMessage,
+  errorSource,
   onCancelDownload,
   onRetry,
 }) => {
   const { latestVersion, date, changeLog } = updateInfo;
   const lang = i18nService.getLanguage();
   const currentLog = changeLog?.[lang] ?? { title: '', content: [] };
-  const isDismissible = modalState === 'info' || modalState === 'error';
+  const isDismissible = modalState === 'info' || modalState === 'downloaded' || modalState === 'error';
+
+  // Escape key dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDismissible) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDismissible, onCancel]);
 
   const handleBackdropClick = () => {
     if (isDismissible) {
       onCancel();
     }
   };
+
+  const progressPercent = downloadProgress?.percent != null ? Math.round(downloadProgress.percent * 100) : 0;
 
   return (
     <div
@@ -54,13 +71,16 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
     >
       <div
         className="modal-content w-full max-w-md mx-4 dark:bg-claude-darkSurface bg-claude-surface rounded-2xl shadow-modal overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Info state - shows changelog and Update/Cancel buttons */}
+        {/* Info state - shows changelog and Update/Later buttons */}
         {modalState === 'info' && (
           <>
             <div className="px-5 pt-5 pb-4">
-              <h3 className="text-base font-semibold dark:text-claude-darkText text-claude-text">
+              <h3 id="update-modal-title" className="text-base font-semibold dark:text-claude-darkText text-claude-text">
                 {i18nService.t('updateAvailableTitle')}
               </h3>
               <p className="mt-1.5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
@@ -73,7 +93,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                 </p>
               )}
 
-              {currentLog.content.length > 0 && (
+              {currentLog.content.length > 0 ? (
                 <ul className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
                   {currentLog.content.map((item, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary">
@@ -82,6 +102,10 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                     </li>
                   ))}
                 </ul>
+              ) : !currentLog.title && (
+                <p className="mt-3 text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary">
+                  {i18nService.t('updateDefaultChangelog')}
+                </p>
               )}
             </div>
 
@@ -91,7 +115,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                 onClick={onCancel}
                 className="px-3 py-1.5 text-sm rounded-lg dark:text-claude-darkTextSecondary text-claude-textSecondary dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
               >
-                {i18nService.t('updateAvailableCancel')}
+                {i18nService.t('updateLater')}
               </button>
               <button
                 type="button"
@@ -107,7 +131,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
         {/* Downloading state - progress bar with cancel */}
         {modalState === 'downloading' && (
           <div className="px-5 py-5">
-            <h3 className="text-base font-semibold dark:text-claude-darkText text-claude-text">
+            <h3 id="update-modal-title" className="text-base font-semibold dark:text-claude-darkText text-claude-text">
               {i18nService.t('updateDownloading')}
             </h3>
             <p className="mt-1.5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
@@ -116,11 +140,17 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
             <div className="mt-4">
               {/* Progress bar */}
-              <div className="h-2 rounded-full bg-claude-accent/20 overflow-hidden">
+              <div
+                className="h-2 rounded-full bg-claude-accent/20 overflow-hidden"
+                role="progressbar"
+                aria-valuenow={progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 {downloadProgress?.percent != null ? (
                   <div
                     className="h-full bg-claude-accent rounded-full transition-all duration-300"
-                    style={{ width: `${Math.round(downloadProgress.percent * 100)}%` }}
+                    style={{ width: `${progressPercent}%` }}
                   />
                 ) : (
                   <div className="h-full bg-claude-accent/60 rounded-full animate-pulse" style={{ width: '100%' }} />
@@ -141,7 +171,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                     <span>{formatSpeed(downloadProgress.speed)}</span>
                   )}
                   {downloadProgress?.percent != null && (
-                    <span>{Math.round(downloadProgress.percent * 100)}%</span>
+                    <span>{progressPercent}%</span>
                   )}
                 </span>
               </div>
@@ -154,6 +184,40 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                 className="px-3 py-1.5 text-sm rounded-lg dark:text-claude-darkTextSecondary text-claude-textSecondary dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
               >
                 {i18nService.t('updateDownloadCancel')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Downloaded state - ready to install */}
+        {modalState === 'downloaded' && (
+          <div className="px-5 py-5">
+            <div className="flex flex-col items-center py-4">
+              <svg className="h-10 w-10 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 id="update-modal-title" className="mt-3 text-base font-semibold dark:text-claude-darkText text-claude-text">
+                {i18nService.t('updateDownloadComplete')}
+              </h3>
+              <p className="mt-1.5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary text-center">
+                v{latestVersion}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-3 py-1.5 text-sm rounded-lg dark:text-claude-darkTextSecondary text-claude-textSecondary dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors"
+              >
+                {i18nService.t('updateLater')}
+              </button>
+              <button
+                type="button"
+                onClick={onInstall}
+                className="px-3 py-1.5 text-sm rounded-lg bg-claude-accent text-white hover:bg-claude-accentHover transition-colors"
+              >
+                {i18nService.t('updateAndRestart')}
               </button>
             </div>
           </div>
@@ -172,7 +236,7 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <h3 className="mt-4 text-base font-semibold dark:text-claude-darkText text-claude-text">
+              <h3 id="update-modal-title" className="mt-4 text-base font-semibold dark:text-claude-darkText text-claude-text">
                 {i18nService.t('updateInstalling')}
               </h3>
               <p className="mt-1.5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary text-center">
@@ -185,8 +249,8 @@ const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
         {/* Error state - error message with retry/cancel */}
         {modalState === 'error' && (
           <div className="px-5 py-5">
-            <h3 className="text-base font-semibold text-red-500 dark:text-red-400">
-              {errorMessage?.includes('Install') || errorMessage?.includes('安装')
+            <h3 id="update-modal-title" className="text-base font-semibold text-red-500 dark:text-red-400">
+              {errorSource === 'install'
                 ? i18nService.t('updateInstallFailed')
                 : i18nService.t('updateDownloadFailed')}
             </h3>

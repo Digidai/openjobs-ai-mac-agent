@@ -1,10 +1,10 @@
 #!/bin/bash
-# Delete a scheduled task via LobsterAI internal API.
+# Delete a scheduled task via OpenJobs AI internal API.
 # Usage: bash "$SKILLS_ROOT/scheduled-task/scripts/delete-task.sh" <task_id>
 #
 # Returns JSON response: { "success": true } or { "success": false, "error": "..." }
 #
-# Environment variables (set automatically by LobsterAI cowork session):
+# Environment variables (set automatically by OpenJobs AI cowork session):
 #   LOBSTERAI_API_BASE_URL - Internal proxy URL (always points to local proxy)
 
 HTTP_NODE_CMD=""
@@ -95,7 +95,7 @@ NODE
 }
 
 if [ -z "$LOBSTERAI_API_BASE_URL" ]; then
-  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside a LobsterAI cowork session."}'
+  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside an OpenJobs AI cowork session."}'
   exit 1
 fi
 

@@ -1,12 +1,12 @@
 #!/bin/bash
-# Update an existing scheduled task via LobsterAI internal API.
+# Update an existing scheduled task via OpenJobs AI internal API.
 # Usage: bash "$SKILLS_ROOT/scheduled-task/scripts/update-task.sh" <task_id> '<json_payload>'
 #    or: bash "$SKILLS_ROOT/scheduled-task/scripts/update-task.sh" <task_id> @/tmp/update.json
 #
 # The JSON payload should contain only the fields to update (partial update).
 # Returns JSON response: { "success": true, "task": { ... } } or { "success": false, "error": "..." }
 #
-# Environment variables (set automatically by LobsterAI cowork session):
+# Environment variables (set automatically by OpenJobs AI cowork session):
 #   LOBSTERAI_API_BASE_URL - Internal proxy URL (always points to local proxy)
 
 HTTP_NODE_CMD=""
@@ -102,7 +102,7 @@ NODE
 }
 
 if [ -z "$LOBSTERAI_API_BASE_URL" ]; then
-  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside a LobsterAI cowork session."}'
+  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside an OpenJobs AI cowork session."}'
   exit 1
 fi
 

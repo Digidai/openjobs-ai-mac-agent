@@ -1,11 +1,11 @@
 #!/bin/bash
-# Enable or disable a scheduled task via LobsterAI internal API.
+# Enable or disable a scheduled task via OpenJobs AI internal API.
 # Usage: bash "$SKILLS_ROOT/scheduled-task/scripts/toggle-task.sh" <task_id> <true|false>
 #
 # Returns JSON response: { "success": true, "task": { ... }, "warning": "..." } or { "success": false, "error": "..." }
 # Warning may be "TASK_AT_PAST" (one-time task datetime has passed) or "TASK_EXPIRED" (task has expired).
 #
-# Environment variables (set automatically by LobsterAI cowork session):
+# Environment variables (set automatically by OpenJobs AI cowork session):
 #   LOBSTERAI_API_BASE_URL - Internal proxy URL (always points to local proxy)
 
 HTTP_NODE_CMD=""
@@ -110,7 +110,7 @@ NODE
 }
 
 if [ -z "$LOBSTERAI_API_BASE_URL" ]; then
-  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside a LobsterAI cowork session."}'
+  echo '{"success":false,"error":"LOBSTERAI_API_BASE_URL not set. This script must run inside an OpenJobs AI cowork session."}'
   exit 1
 fi
 

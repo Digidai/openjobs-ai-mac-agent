@@ -37,7 +37,6 @@ import {
   MoonshotIcon,
   ZhipuIcon,
   MiniMaxIcon,
-  YouDaoZhiYunIcon,
   QwenIcon,
   XiaomiIcon,
   StepfunIcon,
@@ -138,7 +137,7 @@ const providerMeta: Record<ProviderType, { label: string; icon: React.ReactNode 
   moonshot: { label: 'Moonshot', icon: <MoonshotIcon /> },
   zhipu: { label: 'Zhipu', icon: <ZhipuIcon /> },
   minimax: { label: 'MiniMax', icon: <MiniMaxIcon /> },
-  youdaozhiyun: { label: 'Youdao', icon: <YouDaoZhiYunIcon /> },
+  youdaozhiyun: { label: 'OpenAI Gateway', icon: <CustomProviderIcon /> },
   qwen: { label: 'Qwen', icon: <QwenIcon /> },
   xiaomi: { label: 'Xiaomi', icon: <XiaomiIcon /> },
   stepfun: { label: 'StepFun', icon: <StepfunIcon /> },
@@ -196,9 +195,9 @@ const normalizeBaseUrl = (baseUrl: string): string => baseUrl.trim().replace(/\/
 const normalizeApiFormat = (value: unknown): 'anthropic' | 'openai' => (
   value === 'openai' ? 'openai' : 'anthropic'
 );
-const ABOUT_CONTACT_EMAIL = 'lobsterai.project@rd.netease.com';
-const ABOUT_USER_MANUAL_URL = 'https://lobsterai.youdao.com/#/docs/lobsterai_user_manual';
-const ABOUT_SERVICE_TERMS_URL = 'https://c.youdao.com/dict/hardware/lobsterai/lobsterai_service.html';
+const ABOUT_CONTACT_EMAIL = 'contact@openjobs-ai.com';
+const ABOUT_USER_MANUAL_URL = 'https://www.openjobs-ai.com/';
+const ABOUT_SERVICE_TERMS_URL = 'https://www.openjobs-ai.com/terms-of-service.html';
 
 const copyTextFallback = (text: string): boolean => {
   const textarea = document.createElement('textarea');
@@ -2939,10 +2938,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
               </div>
 
               <p className="mt-5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                {language === 'zh' ? '网易有道 版权所有' : 'NetEase Youdao. All rights reserved.'}
+                {language === 'zh' ? 'OpenJobs AI 版权所有' : 'OpenJobs AI. All rights reserved.'}
               </p>
               <p className="mt-1 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Copyright &copy; {new Date().getFullYear()} NetEase Youdao. All Rights Reserved.
+                Copyright &copy; {new Date().getFullYear()} OpenJobs AI. All Rights Reserved.
               </p>
             </div>
           </div>
