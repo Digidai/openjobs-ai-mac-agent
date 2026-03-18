@@ -1,6 +1,6 @@
 #!/bin/bash
 # OpenJobs AI — One-line installer for macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/Digidai/openjobs-ai-releases/main/install.sh | bash
+# Usage: curl -fsSL https://digidai.github.io/openjobs-ai-releases/install.sh | bash
 #
 # Downloads the latest release from GitHub, installs to /Applications, and removes quarantine.
 # No Apple Developer certificate needed — curl downloads don't trigger Gatekeeper.
