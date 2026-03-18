@@ -6,7 +6,7 @@
     "email": "contact@openjobs-ai.com"
   },
   "license": "MIT",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=24 <25"
