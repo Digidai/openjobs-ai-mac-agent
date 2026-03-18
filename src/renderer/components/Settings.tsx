@@ -2938,10 +2938,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
               </div>
 
               <p className="mt-5 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                {language === 'zh' ? 'OpenJobs AI 版权所有' : 'OpenJobs AI. All rights reserved.'}
+                {language === 'zh' ? 'Gene Dai @ OpenJobs AI 版权所有' : 'Gene Dai @ OpenJobs AI. All rights reserved.'}
               </p>
               <p className="mt-1 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Copyright &copy; {new Date().getFullYear()} OpenJobs AI. All Rights Reserved.
+                Copyright &copy; {new Date().getFullYear()} Gene Dai @ OpenJobs AI. All Rights Reserved.
               </p>
             </div>
           </div>
