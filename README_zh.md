@@ -69,47 +69,101 @@ npm run electron:dev
 
 开发服务器默认运行在 `http://localhost:5175`。
 
-### 生产构建
+### 验证命令
 
 ```bash
-# 编译 TypeScript + Vite 打包
+# 生产构建
 npm run build
 
-# ESLint 代码检查
+# ESLint 检查
 npm run lint
+
+# 记忆提取器测试
+npm run test:memory
 ```
 
-## 打包分发
+## 分发指南
 
-使用 [electron-builder](https://www.electron.build/) 生成各平台安装包，输出到 `release/` 目录。
+使用 [electron-builder](https://www.electron.build/) 生成桌面端安装包，输出到 `release/` 目录。
+
+### 构建矩阵
+
+| 目标 | 命令 | 产物 | 说明 |
+|------|------|------|------|
+| macOS 正式发布 | `npm run dist:mac` | 签名 + 公证 `.dmg` | 对外分发首选 |
+| macOS Intel 正式包 | `npm run dist:mac:x64` | 签名 + 公证 `.dmg` | 仅 Intel |
+| macOS Apple Silicon 正式包 | `npm run dist:mac:arm64` | 签名 + 公证 `.dmg` | 仅 Apple Silicon |
+| macOS Universal 正式包 | `npm run dist:mac:universal` | 签名 + 公证 `.dmg` | 发给混合机型用户时最稳妥 |
+| macOS 内部测试包 | `npm run dist:mac:adhoc` | ad-hoc 签名构建 | 仅内部测试，不适合公开分发 |
+| Windows 正式包 | `npm run dist:win` | NSIS 安装包 | 内置便携 Python 运行时 |
+| Linux 正式包 | `npm run dist:linux` | `.AppImage` 和 `.deb` | 标准 Linux 桌面产物 |
+
+### macOS 正式发布要求
+
+如果你希望用户在一台全新的 Mac 上正常安装并打开，需要满足：
+
+- 本机钥匙串中存在有效的 `Developer ID Application` 证书
+- 配置一组可用的公证凭据
+
+支持的公证凭据组合：
+
+- `APPLE_KEYCHAIN_PROFILE`，可选 `APPLE_KEYCHAIN`
+- `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`
+- `APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`
+
+本地 `.env` 可以直接参考 [`.env.example`](.env.example)。
+
+如果你**还没有** `Developer ID Application` 证书，就不要把正式发布包发给外部用户，应该改走内部测试包路径。
+
+### macOS 内部测试包
+
+如果你只是给自己或少量可信测试用户做冒烟测试：
 
 ```bash
-# macOS (.dmg)
-npm run dist:mac
+# 默认架构
+npm run dist:mac:adhoc
 
-# macOS - 仅 Intel
-npm run dist:mac:x64
-
-# macOS - 仅 Apple Silicon
-npm run dist:mac:arm64
-
-# macOS - Universal (双架构)
-npm run dist:mac:universal
-
-# Windows (.exe NSIS 安装包)
-npm run dist:win
-
-# Linux (.AppImage)
-npm run dist:linux
+# 发给 Intel / Apple Silicon 混合测试用户
+npm run dist:mac:adhoc:universal
 ```
+
+这类构建只做 ad-hoc 签名，故意跳过公证。适合内部验证，但首次打开时要预期 Gatekeeper 会拦截。
+
+### macOS 测试版安装说明
+
+给测试用户发送 ad-hoc 构建时，可以直接附上下面这些步骤：
+
+1. 打开你发送的安装包或应用包。
+2. 将 `OpenJobs AI.app` 移动到 `Applications` 文件夹。
+3. 打开 `Applications`，按住 `Control` 点击 `OpenJobs AI`，选择 `Open`。
+4. 如果系统阻止打开，进入 `System Settings > Privacy & Security`，点击 `Open Anyway`。
+5. 如果系统提示“已损坏”或建议移到废纸篓，请在终端执行：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/OpenJobs AI.app"
+```
+
+6. 命令执行完成后重新打开应用。
+
+首次运行时，可能会看到以下权限请求：
+
+- 日历
+- 提醒事项
+- Apple Events / 自动化
+
+### Windows 打包说明
 
 Windows 打包会内置便携 Python 运行时到 `resources/python-win`（安装包资源目录为 `python-win`），终端用户无需手动安装 Python。
 该运行时以解释器为主，不预装 OpenJobs AI 技能所需的 Python 三方包；相关依赖可在运行时按需安装。
-默认情况下，如果未提供预构建压缩包，打包脚本会直接从 python.org 下载官方 embeddable Python 运行时。
-离线或无法联网的构建场景，请显式提供预构建运行时压缩包。
 
-企业离线/私有源打包可通过以下环境变量配置：
-- `LOBSTERAI_PORTABLE_PYTHON_ARCHIVE`：本地预构建运行时压缩包路径（离线 CI/CD 推荐）
+### 离线打包输入
+
+默认情况下，如果未提供预构建压缩包，打包脚本会直接从 python.org 下载官方 embeddable Python 运行时。
+离线或受限网络环境下，请显式提供预构建运行时。
+
+支持以下覆盖项：
+
+- `LOBSTERAI_PORTABLE_PYTHON_ARCHIVE`：本地预构建运行时压缩包路径
 - `LOBSTERAI_PORTABLE_PYTHON_URL`：预构建运行时压缩包下载地址
 - `LOBSTERAI_WINDOWS_EMBED_PYTHON_VERSION` / `LOBSTERAI_WINDOWS_EMBED_PYTHON_URL` / `LOBSTERAI_WINDOWS_GET_PIP_URL`：Windows 主机构建时自动拉取源的可选覆盖项
 

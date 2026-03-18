@@ -41,14 +41,17 @@
     }
   ],
   "mac": {
+    "forceCodeSigning": true,
     "target": [
       "dmg"
     ],
     "icon": "build/icons/mac/icon.icns",
     "category": "public.app-category.productivity",
-    "identity": null,
-    "hardenedRuntime": false,
+    "hardenedRuntime": true,
     "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "notarize": false,
     "extendInfo": {
       "CFBundleIconName": "icon",
       "NSCalendarsUsageDescription": "OpenJobs AI 需要访问您的日历来帮助您查看和管理日程安排，例如查找事件、创建会议等。",
@@ -57,7 +60,7 @@
     }
   },
   "dmg": {
-    "sign": false
+    "sign": true
   },
   "afterSign": "scripts/notarize.js",
   "win": {

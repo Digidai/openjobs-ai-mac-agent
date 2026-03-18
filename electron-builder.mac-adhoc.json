@@ -1,0 +1,12 @@
+{
+  "extends": "./electron-builder.json",
+  "forceCodeSigning": false,
+  "mac": {
+    "sign": "./scripts/macos-adhoc-sign.cjs",
+    "hardenedRuntime": false,
+    "notarize": false
+  },
+  "dmg": {
+    "sign": false
+  }
+}

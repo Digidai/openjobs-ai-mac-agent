@@ -53,7 +53,7 @@ At its core is **Cowork mode** — it executes tools, manipulates files, and run
 - **Node.js** >= 24 < 25
 - **npm**
 
-### Install & Develop
+### Development Setup
 
 ```bash
 # Clone the repository
@@ -69,49 +69,103 @@ npm run electron:dev
 
 The dev server runs at `http://localhost:5175` by default.
 
-### Production Build
+### Validation Commands
 
 ```bash
-# TypeScript compilation + Vite bundle
+# Production bundle
 npm run build
 
-# ESLint check
+# Lint
 npm run lint
+
+# Memory extractor tests
+npm run test:memory
 ```
 
-## Packaging & Distribution
+## Distribution Guide
 
-Uses [electron-builder](https://www.electron.build/) to produce platform-specific installers. Output goes to `release/`.
+OpenJobs AI uses [electron-builder](https://www.electron.build/) to produce desktop artifacts. Output goes to `release/`.
+
+### Build Matrix
+
+| Goal | Command | Output | Notes |
+|------|---------|--------|-------|
+| macOS public release | `npm run dist:mac` | Signed + notarized `.dmg` | Recommended for external distribution |
+| macOS Intel release | `npm run dist:mac:x64` | Signed + notarized `.dmg` | Intel-only |
+| macOS Apple Silicon release | `npm run dist:mac:arm64` | Signed + notarized `.dmg` | Apple Silicon only |
+| macOS universal release | `npm run dist:mac:universal` | Signed + notarized `.dmg` | Best default when sending to mixed Mac users |
+| macOS internal test build | `npm run dist:mac:adhoc` | Ad-hoc signed build | For internal testing only, not public distribution |
+| Windows release | `npm run dist:win` | NSIS installer | Bundles portable Python runtime |
+| Linux release | `npm run dist:linux` | `.AppImage` and `.deb` | Standard Linux desktop artifacts |
+
+### macOS Public Release Requirements
+
+To ship a macOS build that opens normally on a new Mac, you need:
+
+- A valid `Developer ID Application` certificate in your keychain
+- One notarization credential set
+
+Supported notarization credential sets:
+
+- `APPLE_KEYCHAIN_PROFILE` with optional `APPLE_KEYCHAIN`
+- `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`
+- `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
+
+Use [`.env.example`](.env.example) as the template for your local `.env`.
+
+If you do **not** have a `Developer ID Application` certificate yet, do not use the public release commands for external users. Use the internal test path instead.
+
+### macOS Internal Test Build
+
+If you only need a smoke-test build for yourself or trusted testers:
 
 ```bash
-# macOS (.dmg)
-npm run dist:mac
+# Default arch
+npm run dist:mac:adhoc
 
-# macOS - Intel only
-npm run dist:mac:x64
-
-# macOS - Apple Silicon only
-npm run dist:mac:arm64
-
-# macOS - Universal (both architectures)
-npm run dist:mac:universal
-
-# Windows (.exe NSIS installer)
-npm run dist:win
-
-# Linux (.AppImage & .deb)
-npm run dist:linux
+# Universal build for mixed Intel / Apple Silicon testers
+npm run dist:mac:adhoc:universal
 ```
+
+These builds are ad-hoc signed and intentionally skip notarization. They are suitable for internal testing, but testers should expect Gatekeeper friction on first launch.
+
+### macOS Test Build Install Instructions
+
+Share the following steps with testers when sending an ad-hoc build:
+
+1. Open the provided installer or app package.
+2. Move `OpenJobs AI.app` into `Applications`.
+3. Open `Applications`, then `Control`-click `OpenJobs AI` and choose `Open`.
+4. If macOS blocks the app, go to `System Settings > Privacy & Security` and click `Open Anyway`.
+5. If macOS says the app is damaged or suggests moving it to Trash, run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/OpenJobs AI.app"
+```
+
+6. Re-open the app after the command completes.
+
+Expected first-run permission prompts may include:
+
+- Calendar
+- Reminders
+- Apple Events / Automation
+
+### Windows Packaging Notes
 
 Windows builds bundle a portable Python runtime under `resources/python-win` (included as installer resource `python-win`), so end users do not need to install Python manually.
 The bundled runtime is interpreter-focused and does not preinstall OpenJobs AI skill Python packages; those can be installed at runtime on demand.
-By default, packaging downloads the official Python embeddable runtime from python.org if no prebuilt archive is provided.
-For offline/non-network builds, provide a prebuilt runtime archive explicitly.
 
-Offline/runtime source options for packaging:
-- `LOBSTERAI_PORTABLE_PYTHON_ARCHIVE`: Local prebuilt runtime archive path (recommended for offline CI/CD)
+### Offline Packaging Inputs
+
+By default, packaging downloads the official Python embeddable runtime from python.org if no prebuilt archive is provided.
+For offline or restricted-network builds, provide a prebuilt runtime explicitly.
+
+Supported overrides:
+
+- `LOBSTERAI_PORTABLE_PYTHON_ARCHIVE`: Local prebuilt runtime archive path
 - `LOBSTERAI_PORTABLE_PYTHON_URL`: Download URL for the prebuilt runtime archive
-- `LOBSTERAI_WINDOWS_EMBED_PYTHON_VERSION` / `LOBSTERAI_WINDOWS_EMBED_PYTHON_URL` / `LOBSTERAI_WINDOWS_GET_PIP_URL`: Optional overrides for Windows-host bootstrap sources
+- `LOBSTERAI_WINDOWS_EMBED_PYTHON_VERSION` / `LOBSTERAI_WINDOWS_EMBED_PYTHON_URL` / `LOBSTERAI_WINDOWS_GET_PIP_URL`: Optional bootstrap source overrides for Windows-host packaging
 
 ## Architecture
 

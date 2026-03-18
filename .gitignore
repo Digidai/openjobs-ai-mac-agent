@@ -1,5 +1,6 @@
 build/*
 !build/entitlements.mac.plist
+!build/entitlements.mac.inherit.plist
 !build/icons/
 !build/icons/**
 release/
@@ -8,6 +9,7 @@ dist
 dist-electron
 .DS_Store
 .env 
+.env.example
 .claude/
 __pycache__/
 .codebuddy/

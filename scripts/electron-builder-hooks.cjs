@@ -127,32 +127,6 @@ function applyMacIconFix(appPath) {
 }
 
 /**
- * Ad-hoc codesign the macOS app bundle.
- * This signs without a Developer ID certificate using the special identity "-".
- * It won't pass Gatekeeper for downloaded apps, but prevents "damaged" errors
- * and is sufficient for local/internal distribution.
- */
-function adHocCodesign(appPath) {
-  console.log('[electron-builder-hooks] Applying ad-hoc codesign...');
-
-  // Clean extended attributes where possible
-  spawnSync('xattr', ['-cr', appPath], { encoding: 'utf-8' });
-
-  // Use --no-strict to allow signing even with com.apple.provenance
-  // (irremovable on macOS Sequoia+, inherited from downloaded Electron binary)
-  const result = spawnSync('codesign', [
-    '--force', '--deep', '--no-strict', '--sign', '-', appPath,
-  ], { encoding: 'utf-8', timeout: 120000 });
-
-  if (result.status === 0) {
-    console.log('[electron-builder-hooks] ✓ Ad-hoc codesign applied successfully');
-  } else {
-    console.warn('[electron-builder-hooks] ⚠ Ad-hoc codesign failed:', result.stderr);
-    console.warn('[electron-builder-hooks]   App will still work but may trigger Gatekeeper warnings');
-  }
-}
-
-/**
  * Check if a command exists in the system PATH.
  */
 function hasCommand(command) {
@@ -297,7 +271,6 @@ async function afterPack(context) {
 
     if (existsSync(appPath)) {
       applyMacIconFix(appPath);
-      adHocCodesign(appPath);
     } else {
       console.warn(`[electron-builder-hooks] App not found at ${appPath}, skipping icon fix`);
     }

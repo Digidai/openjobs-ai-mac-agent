@@ -21,7 +21,8 @@ npm run test:memory
 npm run compile:electron
 
 # Package for distribution (platform-specific)
-npm run dist:mac        # macOS (.dmg)
+npm run dist:mac        # macOS release (.dmg, signed + notarized)
+npm run dist:mac:adhoc  # macOS internal test build (ad-hoc, not notarized)
 npm run dist:win        # Windows (.exe)
 npm run dist:linux      # Linux (.AppImage)
 ```
