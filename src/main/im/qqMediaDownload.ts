@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
-import { fetchWithSystemProxy } from './http';
+import { fetchWithSystemProxy, readResponseBufferWithLimit } from './http';
 import type { IMMediaType } from './types';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
@@ -131,12 +131,7 @@ export async function downloadQQAttachment(
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    if (buffer.length > MAX_FILE_SIZE) {
-      console.warn(`[QQ Media] 文件过大: ${(buffer.length / 1024 / 1024).toFixed(1)}MB (限制: 25MB)`);
-      return null;
-    }
+    const buffer = await readResponseBufferWithLimit(response, MAX_FILE_SIZE);
 
     // 确定文件扩展名
     let extension = getExtensionFromMime(mimeType);

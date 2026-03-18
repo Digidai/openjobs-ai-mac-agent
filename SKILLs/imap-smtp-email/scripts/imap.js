@@ -16,8 +16,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const IMAP_ID = {
   name: 'moltbot',
   version: '0.0.1',
-  vendor: 'netease',
-  'support-email': 'kefu@188.com'
+  vendor: 'OpenJobs AI',
+  'support-email': 'contact@openjobs-ai.com'
 };
 
 const DEFAULT_MAILBOX = process.env.IMAP_MAILBOX || 'INBOX';

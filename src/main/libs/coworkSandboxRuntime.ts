@@ -64,14 +64,8 @@ const SANDBOX_IMAGE_SHA256 = process.env.COWORK_SANDBOX_IMAGE_SHA256;
 const SANDBOX_IMAGE_SHA256_ARM64 = process.env.COWORK_SANDBOX_IMAGE_SHA256_ARM64;
 const SANDBOX_IMAGE_SHA256_AMD64 = process.env.COWORK_SANDBOX_IMAGE_SHA256_AMD64;
 
-// Default sandbox resources for different architectures
-// Note: macOS binaries are statically linked, Windows requires full QEMU installation
-const DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_ARM64 = 'https://ydhardwarecommon.nosdn.127.net/f23e57c47e4356c31b5bf1012f10a53e.gz';
-const DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64 = 'https://ydhardwarecommon.nosdn.127.net/20a9f6a34705ca51dbd9fb8c7695c1e5.gz';
-const DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64 = 'https://ydhardwarecommon.nosdn.127.net/02a016878c4457bd819e11e55b7b6884.gz';
-
-const DEFAULT_SANDBOX_IMAGE_URL_ARM64 = 'https://ydhardwarecommon.nosdn.127.net/59d9df60ce9c0463c54e3043af60cb10.qcow2';
-const DEFAULT_SANDBOX_IMAGE_URL_AMD64 = 'https://ydhardwarecommon.nosdn.127.net/5c6a7559bab0ff62cc8f6618ca57c9fc.qcow2';
+// Sandbox artifacts must be configured explicitly through environment variables
+// or an OpenJobs-hosted base URL. Avoid hardcoded vendor CDN defaults here.
 
 const downloadState: {
   runtime: Promise<string> | null;
@@ -132,17 +126,6 @@ function getRuntimeUrl(platformKey: string): string | null {
   if (SANDBOX_RUNTIME_URL) {
     return SANDBOX_RUNTIME_URL;
   }
-  if (platformKey === 'darwin-arm64' && DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_ARM64) {
-    return DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_ARM64;
-  }
-  if (platformKey === 'darwin-x64' && DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64) {
-    return DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64;
-  }
-  // Windows x64: use NSIS installer package from CDN
-  if (platformKey === 'win32-x64' && DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64) {
-    return DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64;
-  }
-  // Windows arm64: no default URL yet
   if (platformKey.startsWith('win32')) {
     return null;
   }
@@ -164,11 +147,11 @@ function getArchVariant(): 'amd64' | 'arm64' | null {
 
 function getImageUrl(): string | null {
   const archVariant = getArchVariant();
-  if (archVariant === 'arm64' && (SANDBOX_IMAGE_URL_ARM64 || DEFAULT_SANDBOX_IMAGE_URL_ARM64)) {
-    return SANDBOX_IMAGE_URL_ARM64 || DEFAULT_SANDBOX_IMAGE_URL_ARM64;
+  if (archVariant === 'arm64' && SANDBOX_IMAGE_URL_ARM64) {
+    return SANDBOX_IMAGE_URL_ARM64;
   }
-  if (archVariant === 'amd64' && (SANDBOX_IMAGE_URL_AMD64 || DEFAULT_SANDBOX_IMAGE_URL_AMD64)) {
-    return SANDBOX_IMAGE_URL_AMD64 || DEFAULT_SANDBOX_IMAGE_URL_AMD64;
+  if (archVariant === 'amd64' && SANDBOX_IMAGE_URL_AMD64) {
+    return SANDBOX_IMAGE_URL_AMD64;
   }
   if (SANDBOX_IMAGE_URL) {
     return SANDBOX_IMAGE_URL;
@@ -708,7 +691,7 @@ async function ensureRuntime(): Promise<string> {
         'Alternatively, set the COWORK_SANDBOX_RUNTIME_URL environment variable to a QEMU package URL.',
       ].join('\n');
     } else {
-      errorMsg = 'Sandbox runtime download URL is not configured.';
+      errorMsg = 'Sandbox runtime download URL is not configured. Set COWORK_SANDBOX_RUNTIME_URL or COWORK_SANDBOX_BASE_URL.';
     }
     throw new Error(errorMsg);
   }
@@ -832,8 +815,8 @@ async function ensureImage(): Promise<string> {
   const url = getImageUrl();
   if (!url) {
     const errorMsg = process.platform === 'win32'
-      ? 'Windows sandbox image is not yet configured. Please set COWORK_SANDBOX_IMAGE_URL or COWORK_SANDBOX_BASE_URL environment variable, or wait for default Windows image support.'
-      : 'Sandbox image download URL is not configured.';
+      ? 'Windows sandbox image is not configured. Please set COWORK_SANDBOX_IMAGE_URL, COWORK_SANDBOX_IMAGE_URL_ARM64/COWORK_SANDBOX_IMAGE_URL_AMD64, or COWORK_SANDBOX_BASE_URL.'
+      : 'Sandbox image download URL is not configured. Set COWORK_SANDBOX_IMAGE_URL or COWORK_SANDBOX_BASE_URL.';
     throw new Error(errorMsg);
   }
 

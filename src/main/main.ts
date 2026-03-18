@@ -47,6 +47,9 @@ const IPC_MAX_DEPTH = 5;
 const IPC_MAX_KEYS = 80;
 const IPC_MAX_ITEMS = 40;
 const MAX_INLINE_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const ALLOWED_EXTERNAL_URL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+const ALLOWED_API_PROXY_PROTOCOLS = new Set(['http:', 'https:']);
+const ALLOWED_API_PROXY_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/png': '.png',
   'image/jpeg': '.jpg',
@@ -72,6 +75,48 @@ const sanitizeAttachmentFileName = (value?: string): string => {
   const fileName = path.basename(raw);
   const sanitized = fileName.replace(INVALID_FILE_NAME_PATTERN, ' ').replace(/\s+/g, ' ').trim();
   return sanitized || 'attachment';
+};
+
+const parseUrlSafely = (rawUrl: string): URL | null => {
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeExternalUrl = (rawUrl: string): string | null => {
+  const parsed = parseUrlSafely(rawUrl);
+  if (!parsed || !ALLOWED_EXTERNAL_URL_PROTOCOLS.has(parsed.protocol)) {
+    return null;
+  }
+  return parsed.toString();
+};
+
+const normalizeApiProxyUrl = (rawUrl: string): string | null => {
+  const parsed = parseUrlSafely(rawUrl);
+  if (!parsed || !ALLOWED_API_PROXY_PROTOCOLS.has(parsed.protocol)) {
+    return null;
+  }
+  return parsed.toString();
+};
+
+const normalizeApiProxyMethod = (rawMethod: string): string | null => {
+  const method = rawMethod.trim().toUpperCase();
+  if (!ALLOWED_API_PROXY_METHODS.has(method)) {
+    return null;
+  }
+  return method;
+};
+
+const sanitizeHeaderMap = (headers: Record<string, string>): Record<string, string> => {
+  return Object.fromEntries(
+    Object.entries(headers ?? {}).filter(([key, value]) => (
+      typeof key === 'string'
+      && key.trim().length > 0
+      && typeof value === 'string'
+    )),
+  );
 };
 
 const inferAttachmentExtension = (fileName: string, mimeType?: string): string => {
@@ -2176,7 +2221,11 @@ if (!gotTheLock) {
 
   ipcMain.handle('shell:openExternal', async (_event, url: string) => {
     try {
-      await shell.openExternal(url);
+      const normalizedUrl = normalizeExternalUrl(url);
+      if (!normalizedUrl) {
+        return { success: false, error: 'Invalid external URL' };
+      }
+      await shell.openExternal(normalizedUrl);
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -2252,10 +2301,23 @@ if (!gotTheLock) {
     body?: string;
   }) => {
     try {
-      const response = await session.defaultSession.fetch(options.url, {
-        method: options.method,
-        headers: options.headers,
-        body: options.body,
+      const normalizedUrl = normalizeApiProxyUrl(options.url);
+      const normalizedMethod = normalizeApiProxyMethod(options.method);
+      if (!normalizedUrl || !normalizedMethod) {
+        return {
+          ok: false,
+          status: 0,
+          statusText: 'Invalid request',
+          headers: {},
+          data: null,
+          error: 'Invalid API proxy request',
+        };
+      }
+
+      const response = await session.defaultSession.fetch(normalizedUrl, {
+        method: normalizedMethod,
+        headers: sanitizeHeaderMap(options.headers),
+        body: normalizedMethod === 'GET' || normalizedMethod === 'HEAD' ? undefined : options.body,
       });
 
       const contentType = response.headers.get('content-type') || '';
@@ -2303,10 +2365,22 @@ if (!gotTheLock) {
     activeStreamControllers.set(options.requestId, controller);
 
     try {
-      const response = await session.defaultSession.fetch(options.url, {
-        method: options.method,
-        headers: options.headers,
-        body: options.body,
+      const normalizedUrl = normalizeApiProxyUrl(options.url);
+      const normalizedMethod = normalizeApiProxyMethod(options.method);
+      if (!normalizedUrl || !normalizedMethod) {
+        activeStreamControllers.delete(options.requestId);
+        return {
+          ok: false,
+          status: 0,
+          statusText: 'Invalid request',
+          error: 'Invalid API proxy request',
+        };
+      }
+
+      const response = await session.defaultSession.fetch(normalizedUrl, {
+        method: normalizedMethod,
+        headers: sanitizeHeaderMap(options.headers),
+        body: normalizedMethod === 'GET' || normalizedMethod === 'HEAD' ? undefined : options.body,
         signal: controller.signal,
       });
 

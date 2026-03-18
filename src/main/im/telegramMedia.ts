@@ -7,7 +7,7 @@ import * as path from 'path';
 import { app } from 'electron';
 import type { Context } from 'grammy';
 import type { IMMediaAttachment } from './types';
-import { fetchWithSystemProxy } from './http';
+import { fetchWithSystemProxy, readResponseBufferWithLimit } from './http';
 
 // 常量
 const MAX_FILE_SIZE = 20 * 1024 * 1024;  // Telegram Bot API 限制 20MB
@@ -111,7 +111,7 @@ export async function downloadTelegramFile(
       throw new Error(`Download failed: HTTP ${response.status}`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readResponseBufferWithLimit(response, MAX_FILE_SIZE);
     fs.writeFileSync(localPath, buffer);
 
     console.log(`[Telegram Media] Downloaded: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);

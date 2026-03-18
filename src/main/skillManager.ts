@@ -8,6 +8,9 @@ import { SqliteStore } from './sqliteStore';
 import { cpRecursiveSync } from './fsCompat';
 import { getElectronNodeRuntimePath } from './libs/coworkUtil';
 import { appendPythonRuntimeToEnv } from './libs/pythonRuntime';
+import { readResponseBufferWithLimit } from './im/http';
+
+const MAX_SKILL_ARCHIVE_BYTES = 100 * 1024 * 1024;
 
 /**
  * Resolve the user's login shell PATH on macOS/Linux.
@@ -760,7 +763,7 @@ const downloadGithubArchive = async (
         continue;
       }
 
-      buffer = Buffer.from(await response.arrayBuffer());
+      buffer = await readResponseBufferWithLimit(response, MAX_SKILL_ARCHIVE_BYTES);
       break;
     } catch (error) {
       lastError = extractErrorMessage(error);
@@ -814,7 +817,7 @@ const downloadZipUrl = async (zipUrl: string, tempRoot: string): Promise<string>
     throw new Error(`Download failed (${response.status} ${response.statusText})`);
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
+  const buffer = await readResponseBufferWithLimit(response, MAX_SKILL_ARCHIVE_BYTES);
   const zipPath = path.join(tempRoot, 'remote-skill.zip');
   const extractRoot = path.join(tempRoot, 'remote-skill');
   fs.writeFileSync(zipPath, buffer);

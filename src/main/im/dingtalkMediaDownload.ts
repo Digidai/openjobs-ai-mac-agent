@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
-import { fetchWithSystemProxy } from './http';
+import { fetchWithSystemProxy, readResponseBufferWithLimit } from './http';
 import type { IMMediaType } from './types';
 
 const DINGTALK_API = 'https://api.dingtalk.com';
@@ -137,12 +137,7 @@ export async function downloadDingtalkFile(
       return null;
     }
 
-    const buffer = Buffer.from(await fileResponse.arrayBuffer());
-
-    if (buffer.length > MAX_FILE_SIZE) {
-      console.warn(`[DingTalk Media] 文件过大: ${(buffer.length / 1024 / 1024).toFixed(1)}MB (限制: 20MB)`);
-      return null;
-    }
+    const buffer = await readResponseBufferWithLimit(fileResponse, MAX_FILE_SIZE);
 
     // 确定文件扩展名
     let extension = getDefaultExtension(mediaType);
